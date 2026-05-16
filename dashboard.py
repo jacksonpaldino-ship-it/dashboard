@@ -1,46 +1,76 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
+import plotly.express as px
 from alpaca.trading.client import TradingClient
 from datetime import datetime
 
-# =====================================
+# =========================================
 # PAGE CONFIG
-# =====================================
+# =========================================
 
 st.set_page_config(
-    page_title="Trading Dashboard",
+    page_title="Advanced Trading Dashboard",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# =====================================
+# =========================================
 # CUSTOM CSS
-# =====================================
+# =========================================
 
 st.markdown(
     """
     <style>
 
-    .main {
-        background-color: #0E1117;
-    }
-
-    h1, h2, h3 {
+    .stApp {
+        background-color: #050816;
         color: white;
     }
 
-    .stMetric {
-        background-color: #1E2633;
-        padding: 15px;
-        border-radius: 15px;
-        border: 1px solid #2D3748;
+    section.main > div {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1600px;
+    }
+
+    h1 {
+        font-size: 3.2rem !important;
+        font-weight: 800 !important;
+        color: #72FF5B !important;
+        margin-bottom: 2rem !important;
+    }
+
+    h2, h3 {
+        color: white !important;
+    }
+
+    div[data-testid="metric-container"] {
+        background: linear-gradient(145deg, #0A1020, #0D1426);
+        border: 1px solid #1F2A44;
+        padding: 25px;
+        border-radius: 24px;
+        box-shadow: 0 0 30px rgba(0,0,0,0.35);
+    }
+
+    div[data-testid="metric-container"] label {
+        color: #9CA3AF !important;
+        font-size: 1rem !important;
+    }
+
+    div[data-testid="metric-container"] div {
+        color: #72FF5B !important;
+        font-weight: 700 !important;
     }
 
     .stDataFrame {
-        border-radius: 12px;
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    [data-testid="stSidebar"] {
+        background-color: #08101F;
+        border-right: 1px solid #1B2940;
     }
 
     </style>
@@ -48,22 +78,16 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# =====================================
-# TITLE
-# =====================================
-
-st.title("📈 Advanced Trading Dashboard")
-
-# =====================================
+# =========================================
 # LOAD SECRETS
-# =====================================
+# =========================================
 
 API_KEY = st.secrets["API_KEY"]
 SECRET_KEY = st.secrets["SECRET_KEY"]
 
-# =====================================
+# =========================================
 # CONNECT TO ALPACA
-# =====================================
+# =========================================
 
 client = TradingClient(
     API_KEY,
@@ -71,29 +95,25 @@ client = TradingClient(
     paper=False
 )
 
-# =====================================
-# GET ACCOUNT
-# =====================================
+# =========================================
+# ACCOUNT
+# =========================================
 
 try:
     account = client.get_account()
+
 except Exception as e:
     st.error("Alpaca Connection Error")
     st.write(e)
     st.stop()
 
-# =====================================
-# ACCOUNT VALUES
-# =====================================
+# =========================================
+# VALUES
+# =========================================
 
 equity = float(account.equity)
 cash = float(account.cash)
 buying_power = float(account.buying_power)
-portfolio_value = float(account.portfolio_value)
-
-# =====================================
-# DAILY PNL
-# =====================================
 
 try:
     last_equity = float(account.last_equity)
@@ -103,9 +123,38 @@ except:
     daily_pnl = 0
     daily_pnl_pct = 0
 
-# =====================================
-# METRICS
-# =====================================
+# =========================================
+# SIDEBAR
+# =========================================
+
+st.sidebar.markdown(
+    """
+    # 📊 TRADING DASHBOARD
+    """
+)
+
+st.sidebar.success("🟢 LIVE")
+
+st.sidebar.write("Connected to Alpaca")
+
+st.sidebar.divider()
+
+st.sidebar.write(
+    f"Last updated:\n\n{datetime.now().strftime('%b %d, %Y %I:%M:%S %p')}"
+)
+
+# =========================================
+# TITLE
+# =========================================
+
+st.markdown(
+    "<h1>📈 Advanced Trading Dashboard</h1>",
+    unsafe_allow_html=True
+)
+
+# =========================================
+# TOP METRICS
+# =========================================
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -130,81 +179,109 @@ col4.metric(
     f"${daily_pnl:,.2f}"
 )
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
-# =====================================
-# POSITIONS
-# =====================================
+# =========================================
+# POSITIONS + PIE
+# =========================================
 
-st.subheader("📦 Open Positions")
+left, right = st.columns([2, 1])
 
 positions = client.get_all_positions()
 
-if positions:
+position_data = []
 
-    position_data = []
+with left:
 
-    total_unrealized = 0
+    st.subheader("📦 Open Positions")
 
-    for p in positions:
+    if positions:
 
-        unrealized = float(p.unrealized_pl)
-        total_unrealized += unrealized
+        for p in positions:
 
-        position_data.append({
-            "Symbol": p.symbol,
-            "Qty": float(p.qty),
-            "Current Price": round(float(p.current_price), 2),
-            "Market Value": round(float(p.market_value), 2),
-            "Unrealized PnL": round(unrealized, 2),
-            "Unrealized %": round(float(p.unrealized_plpc) * 100, 2)
-        })
+            position_data.append({
+                "Symbol": p.symbol,
+                "Qty": float(p.qty),
+                "Avg Price": round(float(p.avg_entry_price), 2),
+                "Current Price": round(float(p.current_price), 2),
+                "Market Value": round(float(p.market_value), 2),
+                "Unrealized PnL": round(float(p.unrealized_pl), 2),
+                "Unrealized %": round(float(p.unrealized_plpc) * 100, 2)
+            })
 
-    positions_df = pd.DataFrame(position_data)
+        positions_df = pd.DataFrame(position_data)
 
-    st.dataframe(
-        positions_df,
-        use_container_width=True,
-        hide_index=True
-    )
+        st.dataframe(
+            positions_df,
+            use_container_width=True,
+            hide_index=True
+        )
 
-    st.success(f"Total Unrealized PnL: ${total_unrealized:,.2f}")
+    else:
+        st.info("No open positions")
 
-else:
-    st.info("No open positions")
-
-st.divider()
-
-# =====================================
-# POSITION PIE CHART
-# =====================================
-
-if positions:
+with right:
 
     st.subheader("🥧 Portfolio Allocation")
 
-    pie_df = pd.DataFrame(position_data)
+    if position_data:
 
-    fig_pie = px.pie(
-        pie_df,
-        names="Symbol",
-        values="Market Value",
-        hole=0.5
-    )
+        pie_df = pd.DataFrame(position_data)
 
-    fig_pie.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#0E1117",
-        plot_bgcolor="#0E1117"
-    )
+        fig_pie = px.pie(
+            pie_df,
+            names="Symbol",
+            values="Market Value",
+            hole=0.75
+        )
 
-    st.plotly_chart(fig_pie, use_container_width=True)
+        fig_pie.update_traces(
+            textinfo="none"
+        )
 
-st.divider()
+        fig_pie.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="#050816",
+            plot_bgcolor="#050816",
+            font_color="white",
+            height=350
+        )
 
-# =====================================
+        st.plotly_chart(
+            fig_pie,
+            use_container_width=True
+        )
+
+    else:
+
+        fig_pie = go.Figure()
+
+        fig_pie.add_trace(
+            go.Pie(
+                labels=["No Data"],
+                values=[1],
+                hole=0.75
+            )
+        )
+
+        fig_pie.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="#050816",
+            plot_bgcolor="#050816",
+            font_color="white",
+            height=350
+        )
+
+        st.plotly_chart(
+            fig_pie,
+            use_container_width=True
+        )
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# =========================================
 # EQUITY CURVE
-# =====================================
+# =========================================
 
 st.subheader("📊 Equity Curve")
 
@@ -217,7 +294,7 @@ history = [
 ]
 
 history_df = pd.DataFrame({
-    "Step": [1, 2, 3, 4, 5],
+    "Time": [1, 2, 3, 4, 5],
     "Equity": history
 })
 
@@ -225,117 +302,107 @@ fig_equity = go.Figure()
 
 fig_equity.add_trace(
     go.Scatter(
-        x=history_df["Step"],
+        x=history_df["Time"],
         y=history_df["Equity"],
         mode="lines+markers",
-        name="Equity"
+        line=dict(
+            color="#72FF5B",
+            width=4
+        ),
+        marker=dict(
+            size=8,
+            color="#72FF5B"
+        ),
+        fill="tozeroy",
+        fillcolor="rgba(114,255,91,0.08)"
     )
 )
 
 fig_equity.update_layout(
     template="plotly_dark",
-    paper_bgcolor="#0E1117",
-    plot_bgcolor="#0E1117",
+    paper_bgcolor="#050816",
+    plot_bgcolor="#050816",
+    font_color="white",
+    height=550,
     xaxis_title="Time",
     yaxis_title="Account Equity",
-    height=500
+    showlegend=False
 )
 
-st.plotly_chart(fig_equity, use_container_width=True)
+st.plotly_chart(
+    fig_equity,
+    use_container_width=True
+)
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
-# =====================================
-# ORDERS
-# =====================================
+# =========================================
+# RECENT ORDERS + PERFORMANCE
+# =========================================
 
-st.subheader("🧾 Recent Orders")
+left2, right2 = st.columns([1.2, 1])
 
-try:
+with left2:
 
-    orders = client.get_orders()
+    st.subheader("🧾 Recent Orders")
 
-    order_data = []
+    try:
 
-    for o in orders[:20]:
+        orders = client.get_orders()
 
-        order_data.append({
-            "Symbol": o.symbol,
-            "Side": str(o.side).upper(),
-            "Qty": o.qty,
-            "Type": o.order_type,
-            "Status": o.status,
-            "Created": o.created_at
-        })
+        order_data = []
 
-    orders_df = pd.DataFrame(order_data)
+        for o in orders[:10]:
 
-    st.dataframe(
-        orders_df,
-        use_container_width=True,
-        hide_index=True
+            order_data.append({
+                "Symbol": o.symbol,
+                "Side": str(o.side).upper(),
+                "Qty": o.qty,
+                "Status": o.status
+            })
+
+        orders_df = pd.DataFrame(order_data)
+
+        st.dataframe(
+            orders_df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    except:
+        st.info("No recent orders")
+
+with right2:
+
+    st.subheader("📈 Performance Stats")
+
+    perf1, perf2 = st.columns(2)
+    perf3, perf4 = st.columns(2)
+
+    perf1.metric(
+        "Portfolio Value",
+        f"${equity:,.2f}"
     )
 
-except Exception as e:
-    st.warning("Could not load recent orders")
-    st.write(e)
+    perf2.metric(
+        "Today's Return",
+        f"{daily_pnl_pct:.2f}%"
+    )
 
-st.divider()
+    perf3.metric(
+        "Open Positions",
+        len(positions)
+    )
 
-# =====================================
-# PERFORMANCE SECTION
-# =====================================
+    perf4.metric(
+        "Account Status",
+        "ACTIVE"
+    )
 
-st.subheader("📈 Performance Stats")
+st.markdown("<br>", unsafe_allow_html=True)
 
-perf1, perf2, perf3, perf4 = st.columns(4)
-
-perf1.metric(
-    "Portfolio Value",
-    f"${portfolio_value:,.2f}"
-)
-
-perf2.metric(
-    "Today's Return",
-    f"{daily_pnl_pct:.2f}%"
-)
-
-perf3.metric(
-    "Open Positions",
-    len(positions)
-)
-
-perf4.metric(
-    "Account Status",
-    str(account.status).upper()
-)
-
-st.divider()
-
-# =====================================
-# SIDEBAR
-# =====================================
-
-st.sidebar.title("⚙ Dashboard Controls")
-
-st.sidebar.success("Connected to Alpaca Live Account")
-
-st.sidebar.write(
-    f"Last Refresh:\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-)
-
-st.sidebar.info(
-    "Future upgrades:\n"
-    "- Real equity history\n"
-    "- Win rate tracking\n"
-    "- Trade analytics\n"
-    "- AI trade summaries\n"
-    "- Risk metrics\n"
-    "- Discord alerts"
-)
-
-# =====================================
+# =========================================
 # FOOTER
-# =====================================
+# =========================================
 
 st.success("Dashboard Connected Successfully")
