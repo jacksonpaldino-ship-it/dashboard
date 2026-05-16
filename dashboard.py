@@ -10,7 +10,7 @@ from datetime import datetime
 # =========================================
 
 st.set_page_config(
-    page_title="Advanced Trading Dashboard",
+    page_title="Trading Dashboard",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -19,75 +19,105 @@ st.set_page_config(
 # CUSTOM CSS
 # =========================================
 
-st.markdown(
-    """
-    <style>
+st.markdown("""
+<style>
 
-    .stApp {
-        background-color: #050816;
-        color: white;
-    }
+html, body, [class*="css"] {
+    font-family: Inter, sans-serif;
+}
 
-    section.main > div {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        max-width: 1600px;
-    }
+.stApp {
+    background-color: #040816;
+    color: white;
+}
 
-    h1 {
-        font-size: 3.2rem !important;
-        font-weight: 800 !important;
-        color: #72FF5B !important;
-        margin-bottom: 2rem !important;
-    }
+/* MAIN AREA */
+.block-container {
+    padding-top: 2rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    max-width: 1700px;
+}
 
-    h2, h3 {
-        color: white !important;
-    }
+/* SIDEBAR */
+[data-testid="stSidebar"] {
+    background: #08101F;
+    min-width: 280px;
+    max-width: 280px;
+    border-right: 1px solid #1F2937;
+}
 
-    div[data-testid="metric-container"] {
-        background: linear-gradient(145deg, #0A1020, #0D1426);
-        border: 1px solid #1F2A44;
-        padding: 25px;
-        border-radius: 24px;
-        box-shadow: 0 0 30px rgba(0,0,0,0.35);
-    }
+/* SIDEBAR TEXT */
+.sidebar-title {
+    color: #72FF5B;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 2rem;
+}
 
-    div[data-testid="metric-container"] label {
-        color: #9CA3AF !important;
-        font-size: 1rem !important;
-    }
+/* NAV ITEMS */
+.nav-item {
+    background: rgba(255,255,255,0.03);
+    padding: 14px 18px;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+}
 
-    div[data-testid="metric-container"] div {
-        color: #72FF5B !important;
-        font-weight: 700 !important;
-    }
+/* MAIN TITLE */
+.main-title {
+    color: #72FF5B;
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin-bottom: 2rem;
+}
 
-    .stDataFrame {
-        border-radius: 20px;
-        overflow: hidden;
-    }
+/* METRIC CARDS */
+div[data-testid="metric-container"] {
+    background: linear-gradient(145deg,#0A1020,#111827);
+    border: 1px solid #1F2A44;
+    padding: 30px;
+    border-radius: 24px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.35);
+}
 
-    [data-testid="stSidebar"] {
-        background-color: #08101F;
-        border-right: 1px solid #1B2940;
-    }
+div[data-testid="metric-container"] label {
+    color: #9CA3AF !important;
+    font-size: 1rem !important;
+}
 
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+div[data-testid="metric-container"] div {
+    color: #72FF5B !important;
+    font-size: 1.8rem !important;
+    font-weight: 700 !important;
+}
+
+/* TABLES */
+.stDataFrame {
+    border-radius: 18px;
+    overflow: hidden;
+}
+
+/* SECTION HEADERS */
+.section-header {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: white;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 # =========================================
-# LOAD SECRETS
+# ALPACA CONNECTION
 # =========================================
 
 API_KEY = st.secrets["API_KEY"]
 SECRET_KEY = st.secrets["SECRET_KEY"]
-
-# =========================================
-# CONNECT TO ALPACA
-# =========================================
 
 client = TradingClient(
     API_KEY,
@@ -95,20 +125,15 @@ client = TradingClient(
     paper=False
 )
 
-# =========================================
-# ACCOUNT
-# =========================================
-
 try:
     account = client.get_account()
-
 except Exception as e:
     st.error("Alpaca Connection Error")
     st.write(e)
     st.stop()
 
 # =========================================
-# VALUES
+# ACCOUNT VALUES
 # =========================================
 
 equity = float(account.equity)
@@ -129,18 +154,36 @@ except:
 
 st.sidebar.markdown(
     """
-    # 📊 TRADING DASHBOARD
-    """
+    <div class="sidebar-title">
+    📊 TRADING<br>DASHBOARD
+    </div>
+    """,
+    unsafe_allow_html=True
 )
+
+sidebar_items = [
+    "🏠 Overview",
+    "📦 Positions",
+    "🧾 Orders",
+    "📈 Performance",
+    "📊 Analytics",
+    "⚙ Settings"
+]
+
+for item in sidebar_items:
+    st.sidebar.markdown(
+        f'<div class="nav-item">{item}</div>',
+        unsafe_allow_html=True
+    )
+
+st.sidebar.markdown("---")
 
 st.sidebar.success("🟢 LIVE")
 
 st.sidebar.write("Connected to Alpaca")
 
-st.sidebar.divider()
-
 st.sidebar.write(
-    f"Last updated:\n\n{datetime.now().strftime('%b %d, %Y %I:%M:%S %p')}"
+    f"Last Updated:\n{datetime.now().strftime('%b %d, %Y %I:%M %p')}"
 )
 
 # =========================================
@@ -148,7 +191,7 @@ st.sidebar.write(
 # =========================================
 
 st.markdown(
-    "<h1>📈 Advanced Trading Dashboard</h1>",
+    '<div class="main-title">📈 Advanced Trading Dashboard</div>',
     unsafe_allow_html=True
 )
 
@@ -182,18 +225,20 @@ col4.metric(
 st.markdown("<br>", unsafe_allow_html=True)
 
 # =========================================
-# POSITIONS + PIE
+# POSITIONS + ALLOCATION
 # =========================================
 
 left, right = st.columns([2, 1])
 
 positions = client.get_all_positions()
-
 position_data = []
 
 with left:
 
-    st.subheader("📦 Open Positions")
+    st.markdown(
+        '<div class="section-header">📦 Open Positions</div>',
+        unsafe_allow_html=True
+    )
 
     if positions:
 
@@ -202,17 +247,16 @@ with left:
             position_data.append({
                 "Symbol": p.symbol,
                 "Qty": float(p.qty),
-                "Avg Price": round(float(p.avg_entry_price), 2),
                 "Current Price": round(float(p.current_price), 2),
                 "Market Value": round(float(p.market_value), 2),
                 "Unrealized PnL": round(float(p.unrealized_pl), 2),
                 "Unrealized %": round(float(p.unrealized_plpc) * 100, 2)
             })
 
-        positions_df = pd.DataFrame(position_data)
+        df = pd.DataFrame(position_data)
 
         st.dataframe(
-            positions_df,
+            df,
             use_container_width=True,
             hide_index=True
         )
@@ -222,7 +266,10 @@ with left:
 
 with right:
 
-    st.subheader("🥧 Portfolio Allocation")
+    st.markdown(
+        '<div class="section-header">🥧 Portfolio Allocation</div>',
+        unsafe_allow_html=True
+    )
 
     if position_data:
 
@@ -233,23 +280,6 @@ with right:
             names="Symbol",
             values="Market Value",
             hole=0.75
-        )
-
-        fig_pie.update_traces(
-            textinfo="none"
-        )
-
-        fig_pie.update_layout(
-            template="plotly_dark",
-            paper_bgcolor="#050816",
-            plot_bgcolor="#050816",
-            font_color="white",
-            height=350
-        )
-
-        st.plotly_chart(
-            fig_pie,
-            use_container_width=True
         )
 
     else:
@@ -264,18 +294,19 @@ with right:
             )
         )
 
-        fig_pie.update_layout(
-            template="plotly_dark",
-            paper_bgcolor="#050816",
-            plot_bgcolor="#050816",
-            font_color="white",
-            height=350
-        )
+    fig_pie.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="#040816",
+        plot_bgcolor="#040816",
+        font_color="white",
+        height=350,
+        showlegend=False
+    )
 
-        st.plotly_chart(
-            fig_pie,
-            use_container_width=True
-        )
+    st.plotly_chart(
+        fig_pie,
+        use_container_width=True
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -283,7 +314,10 @@ st.markdown("<br>", unsafe_allow_html=True)
 # EQUITY CURVE
 # =========================================
 
-st.subheader("📊 Equity Curve")
+st.markdown(
+    '<div class="section-header">📈 Equity Curve</div>',
+    unsafe_allow_html=True
+)
 
 history = [
     equity * 0.95,
@@ -294,13 +328,13 @@ history = [
 ]
 
 history_df = pd.DataFrame({
-    "Time": [1, 2, 3, 4, 5],
+    "Time": [1,2,3,4,5],
     "Equity": history
 })
 
-fig_equity = go.Figure()
+fig = go.Figure()
 
-fig_equity.add_trace(
+fig.add_trace(
     go.Scatter(
         x=history_df["Time"],
         y=history_df["Equity"],
@@ -318,10 +352,10 @@ fig_equity.add_trace(
     )
 )
 
-fig_equity.update_layout(
+fig.update_layout(
     template="plotly_dark",
-    paper_bgcolor="#050816",
-    plot_bgcolor="#050816",
+    paper_bgcolor="#040816",
+    plot_bgcolor="#040816",
     font_color="white",
     height=550,
     xaxis_title="Time",
@@ -330,21 +364,24 @@ fig_equity.update_layout(
 )
 
 st.plotly_chart(
-    fig_equity,
+    fig,
     use_container_width=True
 )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # =========================================
-# RECENT ORDERS + PERFORMANCE
+# ORDERS + PERFORMANCE
 # =========================================
 
-left2, right2 = st.columns([1.2, 1])
+left2, right2 = st.columns([1.3, 1])
 
 with left2:
 
-    st.subheader("🧾 Recent Orders")
+    st.markdown(
+        '<div class="section-header">🧾 Recent Orders</div>',
+        unsafe_allow_html=True
+    )
 
     try:
 
@@ -374,27 +411,30 @@ with left2:
 
 with right2:
 
-    st.subheader("📈 Performance Stats")
+    st.markdown(
+        '<div class="section-header">📊 Performance Stats</div>',
+        unsafe_allow_html=True
+    )
 
-    perf1, perf2 = st.columns(2)
-    perf3, perf4 = st.columns(2)
+    p1, p2 = st.columns(2)
+    p3, p4 = st.columns(2)
 
-    perf1.metric(
+    p1.metric(
         "Portfolio Value",
         f"${equity:,.2f}"
     )
 
-    perf2.metric(
+    p2.metric(
         "Today's Return",
         f"{daily_pnl_pct:.2f}%"
     )
 
-    perf3.metric(
+    p3.metric(
         "Open Positions",
         len(positions)
     )
 
-    perf4.metric(
+    p4.metric(
         "Account Status",
         "ACTIVE"
     )
