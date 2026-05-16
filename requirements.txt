@@ -1,5 +1,7 @@
-streamlit
-pandas
-alpaca-py
-plotly
-numpy
+# requirements.txt
+
+streamlit==1.45.1
+pandas==2.2.3
+plotly==6.0.1
+alpaca-py==0.42.1
+numpy==2.2.5
