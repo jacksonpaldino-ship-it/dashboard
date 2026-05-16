@@ -138,6 +138,23 @@ except:
     daily_pnl_pct = 0
 
 # =========================================
+# LOAD EQUITY HISTORY
+# =========================================
+
+try:
+
+    history_df = pd.read_csv(
+        "equity_history.csv"
+    )
+
+except:
+
+    history_df = pd.DataFrame({
+        "timestamp": [],
+        "equity": []
+    })
+
+# =========================================
 # SIDEBAR
 # =========================================
 
@@ -299,9 +316,7 @@ if page == "🏠 Overview":
         unsafe_allow_html=True
     )
 
-    try:
-
-        history_df = pd.read_csv("equity_history.csv")
+    if len(history_df) > 0:
 
         fig = go.Figure()
 
@@ -335,8 +350,11 @@ if page == "🏠 Overview":
             use_container_width=True
         )
 
-    except:
-        st.warning("No equity history data yet")
+    else:
+
+        st.warning(
+            "No equity history data yet"
+        )
 
 # =========================================
 # POSITIONS PAGE
@@ -355,7 +373,17 @@ elif page == "📦 Positions":
 
         data = []
 
+        total_exposure = 0
+
         for p in positions:
+
+            market_value = float(
+                p.market_value
+            )
+
+            total_exposure += abs(
+                market_value
+            )
 
             data.append({
                 "Symbol": p.symbol,
@@ -372,6 +400,15 @@ elif page == "📦 Positions":
             df,
             use_container_width=True,
             hide_index=True
+        )
+
+        exposure_pct = (
+            total_exposure / equity
+        ) * 100 if equity > 0 else 0
+
+        st.metric(
+            "Portfolio Exposure",
+            f"{exposure_pct:.1f}%"
         )
 
     else:
@@ -394,7 +431,7 @@ elif page == "🧾 Orders":
 
         order_data = []
 
-        for o in orders[:25]:
+        for o in orders[:50]:
 
             order_data.append({
                 "Symbol": o.symbol,
@@ -413,8 +450,13 @@ elif page == "🧾 Orders":
             hide_index=True
         )
 
-    except:
-        st.info("No recent orders")
+    except Exception as e:
+
+        st.warning(
+            "Could not load orders"
+        )
+
+        st.write(e)
 
 # =========================================
 # PERFORMANCE PAGE
@@ -449,6 +491,50 @@ elif page == "📈 Performance":
         "ACTIVE"
     )
 
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    if len(history_df) > 0:
+
+        start_equity = history_df[
+            "equity"
+        ].iloc[0]
+
+        current_equity = history_df[
+            "equity"
+        ].iloc[-1]
+
+        total_return = (
+            (
+                current_equity
+                - start_equity
+            )
+            / start_equity
+        ) * 100
+
+        peak_equity = history_df[
+            "equity"
+        ].max()
+
+        drawdown_pct = (
+            (
+                peak_equity
+                - current_equity
+            )
+            / peak_equity
+        ) * 100
+
+        d1, d2 = st.columns(2)
+
+        d1.metric(
+            "Total Return",
+            f"{total_return:.2f}%"
+        )
+
+        d2.metric(
+            "Drawdown",
+            f"{drawdown_pct:.2f}%"
+        )
+
 # =========================================
 # ANALYTICS PAGE
 # =========================================
@@ -465,51 +551,206 @@ elif page == "📊 Analytics":
         orders = client.get_orders()
         positions = client.get_all_positions()
 
-        total_orders = len(orders)
-
-        buy_orders = 0
-        sell_orders = 0
-
-        symbols = {}
+        completed_trades = []
+        buy_prices = {}
 
         for o in orders:
 
-            side = str(o.side).lower()
-            symbol = o.symbol
+            try:
 
-            if side == "buy":
-                buy_orders += 1
+                symbol = o.symbol
+                side = str(o.side).lower()
+                qty = float(o.qty)
 
-            elif side == "sell":
-                sell_orders += 1
+                try:
+                    filled_price = float(
+                        o.filled_avg_price
+                    )
+                except:
+                    continue
 
-            if symbol not in symbols:
-                symbols[symbol] = 0
+                if side == "buy":
 
-            symbols[symbol] += 1
+                    buy_prices[symbol] = (
+                        filled_price
+                    )
 
-        total_completed = max(sell_orders, 1)
+                elif side == "sell":
 
-        estimated_win_rate = (
-            sell_orders / max(total_orders, 1)
-        ) * 100
+                    if symbol in buy_prices:
 
-        if symbols:
+                        entry = buy_prices[
+                            symbol
+                        ]
 
-            best_symbol = max(
-                symbols,
-                key=symbols.get
+                        exit_price = (
+                            filled_price
+                        )
+
+                        pnl = (
+                            exit_price
+                            - entry
+                        ) * qty
+
+                        pnl_pct = (
+                            (
+                                exit_price
+                                - entry
+                            )
+                            / entry
+                        ) * 100
+
+                        completed_trades.append({
+                            "symbol": symbol,
+                            "entry": entry,
+                            "exit": exit_price,
+                            "qty": qty,
+                            "pnl": pnl,
+                            "pnl_pct": pnl_pct
+                        })
+
+            except:
+                pass
+
+        trades_df = pd.DataFrame(
+            completed_trades
+        )
+
+        if len(trades_df) > 0:
+
+            winning_trades = trades_df[
+                trades_df["pnl"] > 0
+            ]
+
+            losing_trades = trades_df[
+                trades_df["pnl"] <= 0
+            ]
+
+            total_trades = len(
+                trades_df
             )
 
-            worst_symbol = min(
-                symbols,
-                key=symbols.get
+            win_rate = (
+                len(winning_trades)
+                / total_trades
+            ) * 100
+
+            avg_win = winning_trades[
+                "pnl"
+            ].mean()
+
+            avg_loss = losing_trades[
+                "pnl"
+            ].mean()
+
+            gross_profit = winning_trades[
+                "pnl"
+            ].sum()
+
+            gross_loss = abs(
+                losing_trades[
+                    "pnl"
+                ].sum()
             )
 
-        else:
+            if gross_loss > 0:
+                profit_factor = (
+                    gross_profit
+                    / gross_loss
+                )
+            else:
+                profit_factor = 0
 
-            best_symbol = "N/A"
-            worst_symbol = "N/A"
+            expectancy = (
+                (
+                    win_rate / 100
+                ) * avg_win
+            ) + (
+                (
+                    (100 - win_rate)
+                    / 100
+                ) * avg_loss
+            )
+
+            c1, c2, c3, c4, c5 = st.columns(5)
+
+            c1.metric(
+                "Win Rate",
+                f"{win_rate:.1f}%"
+            )
+
+            c2.metric(
+                "Avg Win",
+                f"${avg_win:,.2f}"
+            )
+
+            c3.metric(
+                "Avg Loss",
+                f"${avg_loss:,.2f}"
+            )
+
+            c4.metric(
+                "Profit Factor",
+                f"{profit_factor:.2f}"
+            )
+
+            c5.metric(
+                "Expectancy",
+                f"${expectancy:,.2f}"
+            )
+
+            st.markdown(
+                "<br>",
+                unsafe_allow_html=True
+            )
+
+            symbol_stats = {}
+
+            for trade in completed_trades:
+
+                symbol = trade["symbol"]
+                pnl = trade["pnl"]
+
+                if symbol not in symbol_stats:
+                    symbol_stats[symbol] = 0
+
+                symbol_stats[symbol] += pnl
+
+            if symbol_stats:
+
+                best_symbol = max(
+                    symbol_stats,
+                    key=symbol_stats.get
+                )
+
+                worst_symbol = min(
+                    symbol_stats,
+                    key=symbol_stats.get
+                )
+
+                best_symbol_pnl = (
+                    symbol_stats[
+                        best_symbol
+                    ]
+                )
+
+                worst_symbol_pnl = (
+                    symbol_stats[
+                        worst_symbol
+                    ]
+                )
+
+                d1, d2 = st.columns(2)
+
+                d1.metric(
+                    f"Best Symbol: {best_symbol}",
+                    f"${best_symbol_pnl:,.2f}"
+                )
+
+                d2.metric(
+                    f"Worst Symbol: {worst_symbol}",
+                    f"${worst_symbol_pnl:,.2f}"
+                )
 
         total_exposure = 0
 
@@ -523,129 +764,60 @@ elif page == "📊 Analytics":
             total_exposure / equity
         ) * 100 if equity > 0 else 0
 
-        try:
+        if exposure_pct > 70:
 
-            history_df = pd.read_csv(
-                "equity_history.csv"
+            st.error(
+                "⚠ WARNING: Exposure above 70%"
             )
 
-            peak_equity = history_df[
+        if len(history_df) > 0:
+
+            history_df[
+                "rolling_max"
+            ] = history_df[
                 "equity"
-            ].max()
+            ].cummax()
 
-            current_equity = history_df[
-                "equity"
-            ].iloc[-1]
+            history_df[
+                "drawdown"
+            ] = (
+                history_df["equity"]
+                - history_df["rolling_max"]
+            ) / history_df[
+                "rolling_max"
+            ] * 100
 
-            drawdown_pct = (
-                (peak_equity - current_equity)
-                / peak_equity
-            ) * 100
+            fig_dd = go.Figure()
 
-        except:
-
-            drawdown_pct = 0
-
-        daily_pnl_value = daily_pnl
-
-        try:
-
-            if len(history_df) >= 2:
-
-                weekly_pnl = (
-                    history_df["equity"].iloc[-1]
-                    - history_df["equity"].iloc[0]
-                )
-
-            else:
-
-                weekly_pnl = 0
-
-        except:
-
-            weekly_pnl = 0
-
-        a1, a2, a3, a4 = st.columns(4)
-
-        a1.metric(
-            "Total Orders",
-            total_orders
-        )
-
-        a2.metric(
-            "Estimated Win Rate",
-            f"{estimated_win_rate:.1f}%"
-        )
-
-        a3.metric(
-            "Drawdown",
-            f"{drawdown_pct:.2f}%"
-        )
-
-        a4.metric(
-            "Exposure",
-            f"{exposure_pct:.1f}%"
-        )
-
-        b1, b2, b3, b4 = st.columns(4)
-
-        b1.metric(
-            "Daily PnL",
-            f"${daily_pnl_value:,.2f}"
-        )
-
-        b2.metric(
-            "Weekly PnL",
-            f"${weekly_pnl:,.2f}"
-        )
-
-        b3.metric(
-            "Best Symbol",
-            best_symbol
-        )
-
-        b4.metric(
-            "Worst Symbol",
-            worst_symbol
-        )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        try:
-
-            fig_analytics = go.Figure()
-
-            fig_analytics.add_trace(
+            fig_dd.add_trace(
                 go.Scatter(
-                    x=history_df["timestamp"],
-                    y=history_df["equity"],
-                    mode="lines",
-                    line=dict(
-                        color="#72FF5B",
-                        width=4
-                    ),
+                    x=history_df[
+                        "timestamp"
+                    ],
+                    y=history_df[
+                        "drawdown"
+                    ],
                     fill="tozeroy",
-                    fillcolor="rgba(114,255,91,0.08)"
+                    line=dict(
+                        color="#FF4B4B",
+                        width=3
+                    )
                 )
             )
 
-            fig_analytics.update_layout(
+            fig_dd.update_layout(
                 template="plotly_dark",
                 paper_bgcolor="#040816",
                 plot_bgcolor="#040816",
+                title="Drawdown",
                 font_color="white",
-                height=500,
-                title="Equity Performance",
-                showlegend=False
+                height=350
             )
 
             st.plotly_chart(
-                fig_analytics,
+                fig_dd,
                 use_container_width=True
             )
-
-        except:
-            st.info("Waiting for more equity history")
 
         st.markdown(
             '<div class="section-header">📓 Trade Journal</div>',
@@ -654,14 +826,22 @@ elif page == "📊 Analytics":
 
         journal_data = []
 
-        for o in orders[:25]:
+        for trade in completed_trades:
 
             journal_data.append({
-                "Symbol": o.symbol,
-                "Side": str(o.side).upper(),
-                "Qty": o.qty,
-                "Status": o.status,
-                "Date": o.created_at
+                "Symbol": trade["symbol"],
+                "Entry": round(
+                    trade["entry"], 2
+                ),
+                "Exit": round(
+                    trade["exit"], 2
+                ),
+                "PnL": round(
+                    trade["pnl"], 2
+                ),
+                "PnL %": round(
+                    trade["pnl_pct"], 2
+                )
             })
 
         journal_df = pd.DataFrame(
@@ -693,19 +873,28 @@ elif page == "⚙ Settings":
         unsafe_allow_html=True
     )
 
-    st.write("Connected to Alpaca Live Account")
+    st.write(
+        "Connected to Alpaca Live Account"
+    )
 
     st.write(
         f"Last Updated: {datetime.now().strftime('%b %d, %Y %I:%M %p')}"
     )
 
-    if st.button("Refresh Dashboard"):
+    if st.button(
+        "Refresh Dashboard"
+    ):
         st.rerun()
 
 # =========================================
 # FOOTER
 # =========================================
 
-st.markdown("<br>", unsafe_allow_html=True)
+st.markdown(
+    "<br>",
+    unsafe_allow_html=True
+)
 
-st.success("Dashboard Connected Successfully")
+st.success(
+    "Dashboard Connected Successfully"
+)
