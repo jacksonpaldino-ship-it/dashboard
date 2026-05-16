@@ -462,16 +462,8 @@ elif page == "📊 Analytics":
 
     try:
 
-        # =====================================
-        # LOAD DATA
-        # =====================================
-
-        orders = client.get_orders(status="closed")
+        orders = client.get_orders()
         positions = client.get_all_positions()
-
-        # =====================================
-        # BASIC COUNTS
-        # =====================================
 
         total_orders = len(orders)
 
@@ -496,19 +488,11 @@ elif page == "📊 Analytics":
 
             symbols[symbol] += 1
 
-        # =====================================
-        # ESTIMATED WIN RATE
-        # =====================================
-
         total_completed = max(sell_orders, 1)
 
         estimated_win_rate = (
             sell_orders / max(total_orders, 1)
         ) * 100
-
-        # =====================================
-        # BEST / WORST SYMBOLS
-        # =====================================
 
         if symbols:
 
@@ -527,10 +511,6 @@ elif page == "📊 Analytics":
             best_symbol = "N/A"
             worst_symbol = "N/A"
 
-        # =====================================
-        # EXPOSURE TRACKING
-        # =====================================
-
         total_exposure = 0
 
         for p in positions:
@@ -542,10 +522,6 @@ elif page == "📊 Analytics":
         exposure_pct = (
             total_exposure / equity
         ) * 100 if equity > 0 else 0
-
-        # =====================================
-        # DRAWDOWN
-        # =====================================
 
         try:
 
@@ -570,10 +546,6 @@ elif page == "📊 Analytics":
 
             drawdown_pct = 0
 
-        # =====================================
-        # DAILY / WEEKLY PNL
-        # =====================================
-
         daily_pnl_value = daily_pnl
 
         try:
@@ -592,10 +564,6 @@ elif page == "📊 Analytics":
         except:
 
             weekly_pnl = 0
-
-        # =====================================
-        # METRICS ROW 1
-        # =====================================
 
         a1, a2, a3, a4 = st.columns(4)
 
@@ -618,10 +586,6 @@ elif page == "📊 Analytics":
             "Exposure",
             f"{exposure_pct:.1f}%"
         )
-
-        # =====================================
-        # METRICS ROW 2
-        # =====================================
 
         b1, b2, b3, b4 = st.columns(4)
 
@@ -646,10 +610,6 @@ elif page == "📊 Analytics":
         )
 
         st.markdown("<br>", unsafe_allow_html=True)
-
-        # =====================================
-        # EQUITY ANALYTICS CHART
-        # =====================================
 
         try:
 
@@ -686,10 +646,6 @@ elif page == "📊 Analytics":
 
         except:
             st.info("Waiting for more equity history")
-
-        # =====================================
-        # TRADE JOURNAL
-        # =====================================
 
         st.markdown(
             '<div class="section-header">📓 Trade Journal</div>',
