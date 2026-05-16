@@ -418,31 +418,48 @@ elif page == "📦 Positions":
 # ORDERS PAGE
 # =========================================
 
-elif page == "🧾 Orders":
+# REPLACE YOUR ENTIRE ORDERS SECTION WITH THIS
 
-    st.markdown(
-        '<div class="section-header">🧾 Recent Orders</div>',
-        unsafe_allow_html=True
-    )
+# =========================================
+# RECENT ORDERS
+# =========================================
 
-    try:
+st.markdown("## 📄 Recent Orders")
 
-        orders = client.get_orders()
+try:
 
-        order_data = []
+    orders = client.get_orders()
 
-        for o in orders[:50]:
+    orders_data = []
 
-            order_data.append({
-                "Symbol": o.symbol,
-                "Side": str(o.side).upper(),
-                "Qty": o.qty,
-                "Type": o.order_type,
-                "Status": o.status,
-                "Created": o.created_at
+    for order in orders[:25]:
+
+        try:
+
+            orders_data.append({
+
+                "Symbol": order.symbol,
+
+                "Side": str(order.side).upper(),
+
+                "Qty": order.qty,
+
+                "Status": str(order.status).upper(),
+
+                "Type": str(order.order_type).upper(),
+
+                "Time": str(order.created_at)[:19],
+
             })
 
-        orders_df = pd.DataFrame(order_data)
+        except:
+            pass
+
+    if len(orders_data) > 0:
+
+        orders_df = pd.DataFrame(
+            orders_data
+        )
 
         st.dataframe(
             orders_df,
@@ -450,14 +467,17 @@ elif page == "🧾 Orders":
             hide_index=True
         )
 
-    except Exception as e:
+    else:
 
-        st.warning(
-            "Could not load orders"
+        st.info(
+            "No recent orders"
         )
 
-        st.write(e)
+except Exception as e:
 
+    st.error(
+        f"Orders failed: {e}"
+    )
 # =========================================
 # PERFORMANCE PAGE
 # =========================================
