@@ -12,7 +12,7 @@ API_KEY = st.secrets["API_KEY"]
 SECRET_KEY = st.secrets["SECRET_KEY"]
 
 # CONNECT
-client = TradingClient(API_KEY, SECRET_KEY, paper=True)
+client = TradingClient(API_KEY, SECRET_KEY, paper=False)
 
 # ACCOUNT
 account = client.get_account()
