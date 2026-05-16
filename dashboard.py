@@ -456,34 +456,148 @@ elif page == "📈 Performance":
 elif page == "📊 Analytics":
 
     st.markdown(
-        '<div class="section-header">📊 Analytics</div>',
+        '<div class="section-header">📊 Advanced Analytics</div>',
         unsafe_allow_html=True
     )
 
     try:
 
+        # =====================================
+        # LOAD DATA
+        # =====================================
+
         orders = client.get_orders(status="closed")
+        positions = client.get_all_positions()
+
+        # =====================================
+        # BASIC COUNTS
+        # =====================================
 
         total_orders = len(orders)
 
         buy_orders = 0
         sell_orders = 0
 
+        symbols = {}
+
         for o in orders:
 
-            if str(o.side).lower() == "buy":
+            side = str(o.side).lower()
+            symbol = o.symbol
+
+            if side == "buy":
                 buy_orders += 1
 
-            elif str(o.side).lower() == "sell":
+            elif side == "sell":
                 sell_orders += 1
 
-        total_trades = max(total_orders, 1)
+            if symbol not in symbols:
+                symbols[symbol] = 0
+
+            symbols[symbol] += 1
+
+        # =====================================
+        # ESTIMATED WIN RATE
+        # =====================================
+
+        total_completed = max(sell_orders, 1)
 
         estimated_win_rate = (
-            sell_orders / total_trades
+            sell_orders / max(total_orders, 1)
         ) * 100
 
-        a1, a2, a3 = st.columns(3)
+        # =====================================
+        # BEST / WORST SYMBOLS
+        # =====================================
+
+        if symbols:
+
+            best_symbol = max(
+                symbols,
+                key=symbols.get
+            )
+
+            worst_symbol = min(
+                symbols,
+                key=symbols.get
+            )
+
+        else:
+
+            best_symbol = "N/A"
+            worst_symbol = "N/A"
+
+        # =====================================
+        # EXPOSURE TRACKING
+        # =====================================
+
+        total_exposure = 0
+
+        for p in positions:
+
+            total_exposure += abs(
+                float(p.market_value)
+            )
+
+        exposure_pct = (
+            total_exposure / equity
+        ) * 100 if equity > 0 else 0
+
+        # =====================================
+        # DRAWDOWN
+        # =====================================
+
+        try:
+
+            history_df = pd.read_csv(
+                "equity_history.csv"
+            )
+
+            peak_equity = history_df[
+                "equity"
+            ].max()
+
+            current_equity = history_df[
+                "equity"
+            ].iloc[-1]
+
+            drawdown_pct = (
+                (peak_equity - current_equity)
+                / peak_equity
+            ) * 100
+
+        except:
+
+            drawdown_pct = 0
+
+        # =====================================
+        # DAILY / WEEKLY PNL
+        # =====================================
+
+        daily_pnl_value = daily_pnl
+
+        try:
+
+            if len(history_df) >= 2:
+
+                weekly_pnl = (
+                    history_df["equity"].iloc[-1]
+                    - history_df["equity"].iloc[0]
+                )
+
+            else:
+
+                weekly_pnl = 0
+
+        except:
+
+            weekly_pnl = 0
+
+        # =====================================
+        # METRICS ROW 1
+        # =====================================
+
+        a1, a2, a3, a4 = st.columns(4)
 
         a1.metric(
             "Total Orders",
@@ -491,22 +605,125 @@ elif page == "📊 Analytics":
         )
 
         a2.metric(
-            "Sell Orders",
-            sell_orders
-        )
-
-        a3.metric(
             "Estimated Win Rate",
             f"{estimated_win_rate:.1f}%"
         )
 
-        st.info(
-            "More advanced analytics coming soon"
+        a3.metric(
+            "Drawdown",
+            f"{drawdown_pct:.2f}%"
+        )
+
+        a4.metric(
+            "Exposure",
+            f"{exposure_pct:.1f}%"
+        )
+
+        # =====================================
+        # METRICS ROW 2
+        # =====================================
+
+        b1, b2, b3, b4 = st.columns(4)
+
+        b1.metric(
+            "Daily PnL",
+            f"${daily_pnl_value:,.2f}"
+        )
+
+        b2.metric(
+            "Weekly PnL",
+            f"${weekly_pnl:,.2f}"
+        )
+
+        b3.metric(
+            "Best Symbol",
+            best_symbol
+        )
+
+        b4.metric(
+            "Worst Symbol",
+            worst_symbol
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # =====================================
+        # EQUITY ANALYTICS CHART
+        # =====================================
+
+        try:
+
+            fig_analytics = go.Figure()
+
+            fig_analytics.add_trace(
+                go.Scatter(
+                    x=history_df["timestamp"],
+                    y=history_df["equity"],
+                    mode="lines",
+                    line=dict(
+                        color="#72FF5B",
+                        width=4
+                    ),
+                    fill="tozeroy",
+                    fillcolor="rgba(114,255,91,0.08)"
+                )
+            )
+
+            fig_analytics.update_layout(
+                template="plotly_dark",
+                paper_bgcolor="#040816",
+                plot_bgcolor="#040816",
+                font_color="white",
+                height=500,
+                title="Equity Performance",
+                showlegend=False
+            )
+
+            st.plotly_chart(
+                fig_analytics,
+                use_container_width=True
+            )
+
+        except:
+            st.info("Waiting for more equity history")
+
+        # =====================================
+        # TRADE JOURNAL
+        # =====================================
+
+        st.markdown(
+            '<div class="section-header">📓 Trade Journal</div>',
+            unsafe_allow_html=True
+        )
+
+        journal_data = []
+
+        for o in orders[:25]:
+
+            journal_data.append({
+                "Symbol": o.symbol,
+                "Side": str(o.side).upper(),
+                "Qty": o.qty,
+                "Status": o.status,
+                "Date": o.created_at
+            })
+
+        journal_df = pd.DataFrame(
+            journal_data
+        )
+
+        st.dataframe(
+            journal_df,
+            use_container_width=True,
+            hide_index=True
         )
 
     except Exception as e:
 
-        st.warning("Analytics unavailable")
+        st.warning(
+            "Analytics unavailable"
+        )
+
         st.write(e)
 
 # =========================================
