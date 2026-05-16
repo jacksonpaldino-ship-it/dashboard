@@ -299,54 +299,44 @@ if page == "🏠 Overview":
         unsafe_allow_html=True
     )
 
-    history = [
-        equity * 0.95,
-        equity * 0.96,
-        equity * 0.97,
-        equity * 0.985,
-        equity
-    ]
+    try:
 
-    history_df = pd.DataFrame({
-        "Time": [1,2,3,4,5],
-        "Equity": history
-    })
+        history_df = pd.read_csv("equity_history.csv")
 
-    fig = go.Figure()
+        fig = go.Figure()
 
-    fig.add_trace(
-        go.Scatter(
-            x=history_df["Time"],
-            y=history_df["Equity"],
-            mode="lines+markers",
-            line=dict(
-                color="#72FF5B",
-                width=4
-            ),
-            marker=dict(
-                size=8,
-                color="#72FF5B"
-            ),
-            fill="tozeroy",
-            fillcolor="rgba(114,255,91,0.08)"
+        fig.add_trace(
+            go.Scatter(
+                x=history_df["timestamp"],
+                y=history_df["equity"],
+                mode="lines",
+                line=dict(
+                    color="#72FF5B",
+                    width=4
+                ),
+                fill="tozeroy",
+                fillcolor="rgba(114,255,91,0.08)"
+            )
         )
-    )
 
-    fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#040816",
-        plot_bgcolor="#040816",
-        font_color="white",
-        height=550,
-        xaxis_title="Time",
-        yaxis_title="Account Equity",
-        showlegend=False
-    )
+        fig.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="#040816",
+            plot_bgcolor="#040816",
+            font_color="white",
+            height=550,
+            xaxis_title="Time",
+            yaxis_title="Account Equity",
+            showlegend=False
+        )
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    except:
+        st.warning("No equity history data yet")
 
 # =========================================
 # POSITIONS PAGE
@@ -470,24 +460,54 @@ elif page == "📊 Analytics":
         unsafe_allow_html=True
     )
 
-    a1, a2, a3 = st.columns(3)
+    try:
 
-    a1.metric(
-        "Win Rate",
-        "62%"
-    )
+        orders = client.get_orders(status="closed")
 
-    a2.metric(
-        "Average Win",
-        "$84"
-    )
+        total_orders = len(orders)
 
-    a3.metric(
-        "Average Loss",
-        "-$42"
-    )
+        buy_orders = 0
+        sell_orders = 0
 
-    st.info("Advanced analytics coming soon")
+        for o in orders:
+
+            if str(o.side).lower() == "buy":
+                buy_orders += 1
+
+            elif str(o.side).lower() == "sell":
+                sell_orders += 1
+
+        total_trades = max(total_orders, 1)
+
+        estimated_win_rate = (
+            sell_orders / total_trades
+        ) * 100
+
+        a1, a2, a3 = st.columns(3)
+
+        a1.metric(
+            "Total Orders",
+            total_orders
+        )
+
+        a2.metric(
+            "Sell Orders",
+            sell_orders
+        )
+
+        a3.metric(
+            "Estimated Win Rate",
+            f"{estimated_win_rate:.1f}%"
+        )
+
+        st.info(
+            "More advanced analytics coming soon"
+        )
+
+    except Exception as e:
+
+        st.warning("Analytics unavailable")
+        st.write(e)
 
 # =========================================
 # SETTINGS PAGE
